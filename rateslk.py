@@ -8,6 +8,8 @@ import datetime
 import threading
 import random
 import logging
+import tldextract
+from urlextract import URLExtract
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -15,6 +17,7 @@ with open('bot_token.txt', 'r') as file:
     TOKEN = file.readline().strip()
 
 bot = telebot.TeleBot(TOKEN)
+url_extractor = URLExtract()
 
 with open('admins.json') as json_file:
     data = json.load(json_file)
@@ -301,22 +304,25 @@ def handle_group_message(message):
     try:
         # Print the group message content to the console
         print(f"Group Message from {message.chat.title} [{message.chat.id}]: {message.text}")
+
+        # Detect URLs using urlextract
+        urls = url_extractor.find_urls(message.text)
+        for url in urls:
+            # Extract the domain and suffix using tldextract
+            extracted_url = tldextract.extract(url)
+            if extracted_url.domain or extracted_url.suffix:
+                # Get the username of the sender (if available)
+                username = message.from_user.username or "Unknown"
+                print(f"URL detected from {username}: {url}")
+
+                # Check if the URL sender is in the admins array
+                if username not in admins:
+                    bot.delete_message(message.chat.id, message.message_id)
+        
+                break  # Exit the loop after handling the URL
+
     except Exception as e:
         print(f"❌ An error occurred while processing the group message: {e}")
-
-def add_new_admin_from_callback(message):
-    try:
-        new_admin_username = message.text.strip()
-        if new_admin_username not in admins:
-            admins.append(new_admin_username)
-            with open('admins.json', 'w') as json_file:
-                json.dump({'admins': admins}, json_file)
-            bot.send_message(message.chat.id, f"{new_admin_username} has been added as an admin.")
-
-        else:
-            bot.send_message(message.chat.id, f"{new_admin_username} is already an admin.")
-    except Exception as e:
-        bot.send_message(message.chat.id, "❌ An error occurred while processing your request.")
 
 @bot.callback_query_handler(func=lambda call: call.data == "remove_post")
 def handle_remove_post(call):
@@ -352,6 +358,20 @@ def handle_admin_command(message):
 def exit_gracefully(signum, frame):
     print("\nBot terminated by user (Ctrl+C).")
     sys.exit(0)
+
+def add_new_admin_from_callback(message):
+    try:
+        new_admin_username = message.text.strip()
+        if new_admin_username not in admins:
+            admins.append(new_admin_username)
+            with open('admins.json', 'w') as json_file:
+                json.dump({'admins': admins}, json_file)
+            bot.send_message(message.chat.id, f"{new_admin_username} has been added as an admin.")
+
+        else:
+            bot.send_message(message.chat.id, f"{new_admin_username} is already an admin.")
+    except Exception as e:
+        bot.send_message(message.chat.id, "❌ An error occurred while processing your request.")
 
 def remove_admin_from_callback(message):
     try:
