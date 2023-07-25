@@ -158,8 +158,6 @@ def generate_rates_message():
         selling_rate = float(entry['selling'])
         buying_rate = float(entry['buying'])
         rates_message += f"{currency_name}:📈\nSelling Rate: {selling_rate:.2f} LKR\nBuying Rate: {buying_rate:.2f} LKR\n===================\n"
-        timestamp = get_timestamp()
-        print(f"\n{timestamp} - Rates generated and updated the user.")
     return rates_message
 
 # Command handler for /rates
@@ -314,8 +312,7 @@ def add_new_admin_from_callback(message):
             with open('admins.json', 'w') as json_file:
                 json.dump({'admins': admins}, json_file)
             bot.send_message(message.chat.id, f"{new_admin_username} has been added as an admin.")
-            timestamp = get_timestamp()
-            print(f"{timestamp} - {new_admin_username} Added to admins") 
+
         else:
             bot.send_message(message.chat.id, f"{new_admin_username} is already an admin.")
     except Exception as e:
@@ -355,6 +352,29 @@ def handle_admin_command(message):
 def exit_gracefully(signum, frame):
     print("\nBot terminated by user (Ctrl+C).")
     sys.exit(0)
+
+def remove_admin_from_callback(message):
+    try:
+        username_to_remove = message.text.strip()
+        if username_to_remove in admins:
+            admins.remove(username_to_remove)
+            with open('admins.json', 'w') as json_file:
+                json.dump({'admins': admins}, json_file)
+            bot.send_message(message.chat.id, f"{username_to_remove} has been removed as an admin.")
+        else:
+            bot.send_message(message.chat.id, f"{username_to_remove} is not an admin.")
+    except Exception as e:
+        bot.send_message(message.chat.id, "❌ An error occurred while processing your request.")
+
+@bot.callback_query_handler(func=lambda call: call.data == "remove_admin")
+def handle_remove_admin(call):
+    try:
+        bot.send_message(call.message.chat.id, "Please enter the username of the user you want to remove as an admin:")
+        bot.register_next_step_handler(call.message, remove_admin_from_callback)
+    except Exception as e:
+        logging.exception("Error in handle_callback:")
+        bot.send_message(call.message.chat.id, "❌ An error occurred while processing your request.")
+
 
 def clear_console():
     # For Windows
@@ -454,7 +474,7 @@ __________         __                     .__   ____  __.
  |____|_  /(____  /__|  \___  >____  > /\ |____/____|__ \
         \/      \/          \/     \/  \/              \/
                                             
-                                               © @akilaid
+                                       V1.0    © @akilaid
 '''
 
 print(art)
